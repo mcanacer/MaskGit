@@ -7,6 +7,8 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 
+# https://github.com/google-research/maskgit/tree/main/maskgit/libml
+
 
 def mask_by_random_topk(rng, mask_len, probs, temperature=1.0):
     confidence = jnp.log(probs) + temperature * jax.random.gumbel(

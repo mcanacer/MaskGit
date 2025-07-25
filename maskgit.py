@@ -131,3 +131,4 @@ class MaskGit(nn.Module):
         logits = MlmLayer(self.embed_dim)(layer_input, word_embeddings_w)
 
         return logits  # [N, L, C]
+

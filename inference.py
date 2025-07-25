@@ -50,7 +50,7 @@ class Generator(object):
             vqvae_params,
             sos_token_id,
             mask_token_id,
-            num_image_tokens=256,
+            image_size=128,
             temperature=4.5,
     ):
         self.maskgit = maskgit
@@ -59,9 +59,8 @@ class Generator(object):
         self.vqvae_p = vqvae_params
         self.sos_token_id = sos_token_id
         self.mask_token_id = mask_token_id
-        self.num_image_tokens = num_image_tokens
         self.temperature = temperature
-        self.resolution = self.num_image_tokens // 16
+        self.resolution = image_size // 16
 
     def create_inputs_tokens(self, num_samples):
         sos_tokens = self.sos_token_id * jnp.ones((num_samples, 1), dtype=jnp.int32)
@@ -78,9 +77,12 @@ class Generator(object):
         inputs = self.create_inputs_tokens(num_samples)  # [N, seq_len]
         z_indices = utils.decode(inputs, rng, tokens_to_logits, self.mask_token_id, num_iter, self.temperature)  # [N, num_iter, seq_len]
 
-        z_indices = jnp.reshape(z_indices[:, -1, 1:], (-1, self.resolution, self.resolution))  # [N, 16, 16]
+        z_indices = jnp.reshape(z_indices[:, -1, 1:], (-1, self.resolution, self.resolution))  # [N, 8, 8]
 
         gen_images = self.vqvae.apply(self.vqvae_p, z_indices, method=self.vqvae.decode)  # [N, H, W, 3]
+
+        gen_images = (gen_images + 1) / 2
+        gen_images = np.clip(np.array(gen_images), 0.0, 1.0)
 
         return gen_images
 

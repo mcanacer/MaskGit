@@ -111,7 +111,7 @@ class VectorQuantizer(nn.Module):
         embedding_loss = jnp.mean((quantized - jax.lax.stop_gradient(z_e)) ** 2)
 
         quantized = z_e + jax.lax.stop_gradient(quantized - z_e)
-        return quantized, commitment_loss, embedding_loss
+        return quantized, commitment_loss, embedding_loss, encoding_indices
 
 
 class VQVAE(nn.Module):
@@ -138,9 +138,9 @@ class VQVAE(nn.Module):
 
     def __call__(self, x):
         z_e = self.encoder(x)
-        z_q, commitment_loss, embedding_loss = self.quantizer(z_e)
+        z_q, commitment_loss, embedding_loss, enc_indices = self.quantizer(z_e)
         x_recon = self.decoder(z_q)
-        return x_recon, z_q, commitment_loss, embedding_loss
+        return x_recon, z_q, commitment_loss, embedding_loss, enc_indices
 
     def encode(self, x):
         latents = self.encoder(x)  # [N, H, W, D]
@@ -156,6 +156,7 @@ class VQVAE(nn.Module):
         return indices.reshape(latents.shape[:3])  # [N, H, W]
 
     def decode(self, x):
-        # x: [N, HxW]
+        # x: [N, H, W]
         features = jnp.take(self.quantizer.variables['params']['codebook'], x, axis=0)
         return self.decoder(features)
+

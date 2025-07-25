@@ -6,6 +6,8 @@ from torch.utils.data import DataLoader
 import wandb
 import optax
 from vqvae import VQVAE
+from lpips import LPIPS
+from discriminator import Discriminator
 
 
 def parse_args(args):
@@ -14,7 +16,7 @@ def parse_args(args):
     parser.add_argument('--seed', type=int, default=61)
 
     # Dataset
-    parser.add_argument('--image-size', type=int, default=256)
+    parser.add_argument('--image-size', type=int, default=128)
     parser.add_argument('--batch-size', type=int, default=32)
     parser.add_argument('--num-workers', type=int, default=4)
 
@@ -44,7 +46,6 @@ def everything(args):
         transforms.ToTensor(),  # Normalize [0, 1]
         transforms.Lambda(lambda t: (t * 2.0) - 1.0),  # Scale [-1, 1]
         transforms.Lambda(lambda x: x.permute(1, 2, 0)),  # Convert [C, H, W] to [H, W, C]
-        transforms.Lambda(lambda x: x.numpy()),
     ])
 
     train_dataset = HuggingFace(
@@ -68,11 +69,25 @@ def everything(args):
         channel_multipliers=[1, 1, 2, 2, 4],
     )
 
+    lpips = LPIPS()
+
+    disc = Discriminator(
+        channel_multipliers=[1, 2, 4, 8],
+        base_channels=64,
+    )
+
     optimizer = optax.chain(optax.adam(
         learning_rate=args.lr_rate,
         b1=0.9,
         b2=0.96,
     ))
+
+    disc_optimizer = optax.chain(
+        optax.adam(
+            learning_rate=0.0001,
+            0.0,
+            0.99,
+        ))
 
     epochs = args.num_epochs
 
@@ -87,8 +102,12 @@ def everything(args):
         'seed': args.seed,
         'train_loader': train_loader,
         'model': model,
+        'lpips': lpips,
+        'disc': disc,
         'optimizer': optimizer,
+        'disc_optimizer': disc_optimizer,
         'epochs': epochs,
         'run': run,
         'checkpoint_path': args.checkpoint_path,
     }
+

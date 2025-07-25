@@ -15,7 +15,7 @@ def parse_args(args):
     parser.add_argument('--seed', type=int, default=61)
 
     # Dataset
-    parser.add_argument('--image-size', type=int, default=256)
+    parser.add_argument('--image-size', type=int, default=128)
     parser.add_argument('--batch-size', type=int, default=32)
     parser.add_argument('--num-workers', type=int, default=4)
 
@@ -35,7 +35,6 @@ def parse_args(args):
     # Save
     parser.add_argument('--checkpoint-path', type=str, required=True)
     parser.add_argument('--maskgit-path', type=str, required=True)
-    parser.add_argument('--seq-path', type=str, default='/content/drive/MyDrive/VQ-VAE/celeb_sequences.npy')
 
     return parser.parse_args(args)
 
@@ -48,7 +47,6 @@ def everything(args):
         transforms.ToTensor(),  # Normalize [0, 1]
         transforms.Lambda(lambda t: (t * 2.0) - 1.0),  # Scale [-1, 1]
         transforms.Lambda(lambda x: x.permute(1, 2, 0)),  # Convert [C, H, W] to [H, W, C]
-        transforms.Lambda(lambda x: x.numpy()),
     ])
 
     train_dataset = HuggingFace(
@@ -103,5 +101,5 @@ def everything(args):
         'label_smoothing': args.label_smoothing,
         'checkpoint_path': args.checkpoint_path,
         'maskgit_path': args.maskgit_path,
-        'seq_path': args.seq_path,
     }
+
