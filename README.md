@@ -1,6 +1,6 @@
 # MaskGIT — JAX/Flax Implementation
 
-A from-scratch implementation of **MaskGIT: Masked Generative Image Transformer** ([Chang et al., 2022](https://arxiv.org/abs/2202.04200)) in JAX/Flax.
+A from-scratch implementation of **MaskGIT: Masked Generative Image Transformer** ([Chang et al., 2022](https://arxiv.org/abs/2202.04200)) in JAX/Flax, including a fully custom VQGAN tokenizer trained from scratch.
 
 ---
 
@@ -12,14 +12,21 @@ MaskGIT is a two-stage generative model. First, a VQGAN encodes images as discre
 
 ## Implemented Components
 
+### Stage 1 — VQGAN Tokenizer
 | Component | Description |
 |---|---|
-| **VQGAN tokenizer** | Encodes images into discrete codebook indices |
+| **VQ-VAE** | Encoder/decoder with vector quantized bottleneck |
+| **Patch discriminator** | Adversarial loss for sharp reconstructions |
+| **LPIPS perceptual loss** | Feature-level perceptual similarity loss |
+| **Full two-stage tokenizer** | Trained entirely from scratch, no pretrained weights |
+
+### Stage 2 — Masked Transformer
+| Component | Description |
+|---|---|
 | **Bidirectional transformer** | BERT-style encoder operating on image tokens |
-| **Masked token prediction** | Training with variable masking ratio |
-| **Cosine masking schedule** | Inference masking schedule for iterative decoding |
+| **Masked token prediction** | Training with cosine-scheduled variable masking ratio |
 | **Confidence-based sampling** | Tokens with highest predicted confidence unmasked first |
-| **Class conditioning** | Class label conditioning via token prepending |
+| **Iterative decoding** | Multi-step generation from fully masked sequence |
 
 ---
 
@@ -30,13 +37,14 @@ MaskGIT is a two-stage generative model. First, a VQGAN encodes images as discre
 | Dataset | ImageNet / CelebA |
 | Framework | JAX/Flax |
 | Accelerator | Google Colab |
-| Stage 1 | Pretrained VQGAN tokenizer |
-| Stage 2 | Masked transformer on frozen tokens |
+| Stage 1 | VQGAN trained from scratch |
+| Stage 2 | Masked transformer on frozen VQGAN tokens |
 
 ---
 
 ## Generated Samples
 
+<!-- Replace this with your actual image grid -->
 ![Generated Image](gen_images/generated_image17.png)
 ![Generated Image](gen_images/generated_image20.png)
 ![Generated Image](gen_images/generated_image21.png)
@@ -65,22 +73,25 @@ Non-trivial details reproduced faithfully from the paper:
 - The masking ratio during training is sampled from a cosine schedule distribution, not fixed — this is crucial for the model to learn to decode under any masking level
 - At inference, tokens are revealed following the cosine schedule: more tokens per step early, fewer later
 - The transformer uses **bidirectional (non-causal) attention** — a critical distinction from autoregressive models like GPT
-- Class conditioning prepends a learned class embedding token to the sequence before the masked image tokens
+- LPIPS loss uses frozen VGG features; gradients flow through the decoder but not the perceptual network
+- The discriminator is only activated after a warmup period to stabilize early VAE training
 
 ---
 
 ## Project Structure
 ```
-maskgit-jax/
-├── tokenizer/
-│   └── vqgan.py             # Pretrained VQGAN for tokenization
-├── model/
-│   ├── transformer.py       # Bidirectional transformer
-│   └── embeddings.py        # Token + position + class embeddings
-├── masking/
-│   ├── schedule.py          # Cosine masking schedule
-│   └── strategy.py          # Confidence-based iterative decoding
-└── train.py
+MaskGit/
+├── vqvae.py               # VQ-VAE encoder, decoder, quantizer
+├── vqvae_config.py        # VQGAN hyperparameters
+├── discriminator.py       # PatchGAN discriminator
+├── lpips.py               # Perceptual loss (LPIPS)
+├── train_vqvae.py         # Stage 1: VQGAN training
+├── maskgit.py             # Bidirectional transformer + masking
+├── maskgit_config.py      # MaskGIT hyperparameters
+├── train_maskgit.py       # Stage 2: Masked transformer training
+├── dataset.py             # Data loading and preprocessing
+├── utils.py               # Shared utilities
+└── inference.py           # Generation script
 ```
 
 ---
@@ -96,8 +107,6 @@ maskgit-jax/
 ```
 
 **Official Implementation:** [google-research/maskgit](https://github.com/google-research/maskgit)
-
-
 
 
 
